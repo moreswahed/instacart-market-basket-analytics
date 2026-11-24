@@ -30,5 +30,5 @@ This project explores customer purchasing rhythm, basket size dynamics, product 
 ## How to View the Dashboard
 
 1. Download or clone the repository.
-2. Open `dashboard/instacart_powerbi_dashboard-v2.html` in any web browser (Chrome, Edge, Firefox).
+2. Open `dashboard/instacart_dashboard.html` in any web browser (Chrome, Edge, Firefox).
 3. Switch between the 3 pages and use the top filters (`Day of Week`, `Time Period`, `Department`, `Product Status`) or click chart bars to cross-filter.
