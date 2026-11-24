@@ -24,7 +24,7 @@ This project explores customer purchasing rhythm, basket size dynamics, product 
 ## Repository Structure
 
 - `sql/` — SQL scripts for data preparation, cleaning, and analysis.
-- `dashboard/instacart_powerbi_dashboard-v2.html` — Interactive 3-page HTML dashboard.
+- `dashboard/instacart_dashboard.html` — Interactive 3-page HTML dashboard.
 - `assets/` — Dashboard screenshots (Overview.png`, `Products.png`, `Reorder_Behavior.png`).
 
 ## How to View the Dashboard
