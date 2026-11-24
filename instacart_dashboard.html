@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Instacart Market Basket Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg-app: #f3f5f8;
+    --bg-card: #ffffff;
+    --bg-subtle: #f8fafc;
+    --border: #e2e8f0;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --accent-primary: #0f766e;
+    --accent-primary-soft: #ccfbf1;
+    --accent-secondary: #1d4ed8;
+    --accent-warn: #d97706;
+    --accent-danger: #dc2626;
+    --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    background: var(--bg-app);
+    color: var(--text-main);
+    line-height: 1.5;
+  }
+  .topbar {
+    background: #0f172a;
+    color: #fff;
+    padding: 16px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 3px solid var(--accent-primary);
+  }
+  .brand h1 { font-size: 1.2rem; font-weight: 700; }
+  .nav-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .nav-tab {
+    background: rgba(255,255,255,0.08);
+    color: #e2e8f0;
+    border: 1px solid rgba(255,255,255,0.16);
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+  .nav-tab:hover { background: rgba(255,255,255,0.16); }
+  .nav-tab.active {
+    background: var(--accent-primary);
+    color: #fff;
+    border-color: var(--accent-primary);
+  }
+  .container {
+    max-width: 1380px;
+    margin: 18px auto 36px;
+    padding: 0 18px;
+  }
+  .filter-bar {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .filters-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+  .filter-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.84rem;
+  }
+  .filter-item label { color: var(--text-muted); font-weight: 600; }
+  .filter-item select {
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 6px 10px;
+    background: var(--bg-subtle);
+    color: var(--text-main);
+    font-size: 0.84rem;
+    cursor: pointer;
+  }
+  .btn-reset {
+    background: #fef2f2;
+    color: var(--accent-danger);
+    border: 1px solid #fecaca;
+    padding: 6px 12px;
+    border-radius: 7px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-reset:hover { background: #fee2e2; }
+  .active-filter-badge {
+    font-size: 0.78rem;
+    color: var(--accent-primary);
+    background: var(--accent-primary-soft);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 960px) { .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 540px) { .kpi-grid { grid-template-columns: 1fr; } }
+  .kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+    border-top: 4px solid var(--accent-primary);
+  }
+  .kpi-card.blue { border-top-color: var(--accent-secondary); }
+  .kpi-card.amber { border-top-color: var(--accent-warn); }
+  .kpi-card.red { border-top-color: var(--accent-danger); }
+  .kpi-title { font-size: 0.82rem; color: var(--text-muted); font-weight: 600; }
+  .kpi-value { font-size: 1.7rem; font-weight: 800; margin-top: 4px; color: var(--text-main); }
+  .row-2col {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .row-equal {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 980px) {
+    .row-2col, .row-equal { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .card-title { font-size: 0.96rem; font-weight: 700; color: var(--text-main); }
+  .card-note { font-size: 0.75rem; color: var(--text-muted); }
+  .chart-box { position: relative; height: 280px; width: 100%; }
+  .page { display: none; }
+  .page.active { display: block; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.83rem;
+  }
+  th, td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+  th {
+    background: var(--bg-subtle);
+    color: var(--text-muted);
+    font-weight: 700;
+    position: sticky;
+    top: 0;
+  }
+  tr:hover td { background: #f8fafc; }
+  .table-scroll { max-height: 290px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+  .pill-known { background: #dcfce7; color: #166534; }
+  .pill-unknown { background: #fee2e2; color: #991b1b; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <h1>Instacart Market Basket Analytics</h1>
+  </div>
+  <nav class="nav-tabs" aria-label="Dashboard Pages">
+    <button class="nav-tab active" data-page="page1" onclick="switchPage('page1')">1. Executive Overview &amp; Peak Demand</button>
+    <button class="nav-tab" data-page="page2" onclick="switchPage('page2')">2. Reorder Behavior &amp; Basket</button>
+    <button class="nav-tab" data-page="page3" onclick="switchPage('page3')">3. Product Hierarchy &amp; Unknown Audit</button>
+  </nav>
+</header>
+
+<main class="container">
+  <!-- Shared Filter Bar -->
+  <section class="filter-bar">
+    <div class="filters-group">
+      <div class="filter-item">
+        <label for="dowFilter">Day of Week:</label>
+        <select id="dowFilter" onchange="applyFilters()">
+          <option value="ALL">All Days (0 - 6)</option>
+          <option value="0">0 — Sunday</option>
+          <option value="1">1 — Monday</option>
+          <option value="2">2 — Tuesday</option>
+          <option value="3">3 — Wednesday</option>
+          <option value="4">4 — Thursday</option>
+          <option value="5">5 — Friday</option>
+          <option value="6">6 — Saturday</option>
+        </select>
+      </div>
+
+      <div class="filter-item">
+        <label for="periodFilter">Time Period:</label>
+        <select id="periodFilter" onchange="applyFilters()">
+          <option value="ALL">All Hours (0 - 23)</option>
+          <option value="Night">Night (0 - 5)</option>
+          <option value="Morning">Morning (6 - 11)</option>
+          <option value="Afternoon">Afternoon (12 - 17)</option>
+          <option value="Evening">Evening (18 - 23)</option>
+        </select>
+      </div>
+
+      <div class="filter-item">
+        <label for="deptFilter">Department:</label>
+        <select id="deptFilter" onchange="applyFilters()">
+          <option value="ALL">All Departments</option>
+        </select>
+      </div>
+
+      <div class="filter-item">
+        <label for="statusFilter">Product Status:</label>
+        <select id="statusFilter" onchange="applyFilters()">
+          <option value="ALL">All Products</option>
+          <option value="Known">Known Products</option>
+          <option value="Unknown">Unknown Products</option>
+        </select>
+      </div>
+
+      <button class="btn-reset" onclick="resetFilters()">Clear Filters</button>
+    </div>
+    <span class="active-filter-badge" id="filterSummary">All Data</span>
+  </section>
+
+  <!-- ==================== PAGE 1: EXECUTIVE OVERVIEW ==================== -->
+  <section id="page1" class="page active">
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-title">Total Orders</div>
+        <div class="kpi-value" id="p1_orders">-</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-title">Total Items Sold</div>
+        <div class="kpi-value" id="p1_items">-</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-title">Avg Basket Size</div>
+        <div class="kpi-value" id="p1_basket">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Reorder Rate %</div>
+        <div class="kpi-value" id="p1_reorder">-</div>
+      </div>
+    </div>
+
+    <div class="row-2col">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Orders by Hour of Day (0–23)</div>
+          <div class="card-note">Hover for Basket Size &amp; Reorder Rate %</div>
+        </div>
+        <div class="chart-box"><canvas id="hourChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Orders by Day of Week (0–6)</div>
+          <div class="card-note">Click a bar to filter</div>
+        </div>
+        <div class="chart-box"><canvas id="dowChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Top 8 Departments by Total Items Sold</div>
+        <div class="card-note">Click a bar to filter</div>
+      </div>
+      <div class="chart-box" style="height: 250px;"><canvas id="p1DeptChart"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ==================== PAGE 2: REORDER & BASKET ==================== -->
+  <section id="page2" class="page">
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-title">Reorder Rate %</div>
+        <div class="kpi-value" id="p2_reorder">-</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-title">Reordered Items</div>
+        <div class="kpi-value" id="p2_reordered_items">-</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-title">Avg Basket Size</div>
+        <div class="kpi-value" id="p2_basket">-</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-title">Avg Add-to-Cart Order</div>
+        <div class="kpi-value" id="p2_cart_pos">-</div>
+      </div>
+    </div>
+
+    <div class="row-equal">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Top Departments: Items Sold vs. Reorder Rate %</div>
+          <div class="card-note">Bars: Items Sold &bull; Line: Reorder Rate %</div>
+        </div>
+        <div class="chart-box"><canvas id="p2DeptComboChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Reorder Rate % by Add-to-Cart Position</div>
+          <div class="card-note">First 12 basket positions</div>
+        </div>
+        <div class="chart-box"><canvas id="cartOrderChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="row-equal">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Reorder Interval (Days Since Prior Order)</div>
+          <div class="card-note">Bars: Avg Basket Size &bull; Line: Reorder Rate %</div>
+        </div>
+        <div class="chart-box"><canvas id="intervalChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Top Reordered Products (Min 1K Orders)</div>
+          <div class="card-note">Sorted by Reorder Rate %</div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Product Name</th>
+                <th>Department</th>
+                <th>Items Sold</th>
+                <th>Reorder Rate %</th>
+              </tr>
+            </thead>
+            <tbody id="topReorderedBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== PAGE 3: HIERARCHY & UNKNOWN AUDIT ==================== -->
+  <section id="page3" class="page">
+    <div class="kpi-grid">
+      <div class="kpi-card blue">
+        <div class="kpi-title">Total Products Ordered</div>
+        <div class="kpi-value" id="p3_distinct_prods">-</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-title">Unknown Items Sold</div>
+        <div class="kpi-value" id="p3_unknown_items">-</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-title">Unknown Share %</div>
+        <div class="kpi-value" id="p3_unknown_share">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Reorder Rate %</div>
+        <div class="kpi-value" id="p3_reorder">-</div>
+      </div>
+    </div>
+
+    <div class="row-equal">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Product Hierarchy (Department &rarr; Aisle &rarr; Product)</div>
+          <div class="card-note">Category &amp; item breakdown</div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Department &rarr; Aisle &rarr; Product</th>
+                <th>Status</th>
+                <th>Items Sold</th>
+                <th>Reorder %</th>
+                <th>Avg Cart #</th>
+              </tr>
+            </thead>
+            <tbody id="hierarchyBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Known vs. Unknown Products Volume</div>
+          <div class="card-note">Items sold by product status</div>
+        </div>
+        <div class="chart-box" style="height: 310px;"><canvas id="knownVsUnknownChart"></canvas></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const BASE_ORDERS = 3214874;
+
+const HOUR_WEIGHTS = [
+  0.0067, 0.0036, 0.0021, 0.0016, 0.0016, 0.0027,
+  0.0090, 0.0274, 0.0530, 0.0757, 0.0853, 0.0844,
+  0.0810, 0.0820, 0.0830, 0.0820, 0.0781, 0.0644,
+  0.0505, 0.0388, 0.0299, 0.0235, 0.0188, 0.0124
+];
+
+const DOW_WEIGHTS = [0.193, 0.175, 0.131, 0.119, 0.118, 0.131, 0.132];
+
+const DEPARTMENTS = [
+  { name: "produce", share: 0.292, reorder: 0.650, status: "Known" },
+  { name: "dairy eggs", share: 0.167, reorder: 0.670, status: "Known" },
+  { name: "snacks", share: 0.089, reorder: 0.559, status: "Known" },
+  { name: "beverages", share: 0.083, reorder: 0.653, status: "Known" },
+  { name: "frozen", share: 0.069, reorder: 0.542, status: "Known" },
+  { name: "pantry", share: 0.058, reorder: 0.347, status: "Known" },
+  { name: "bakery", share: 0.036, reorder: 0.628, status: "Known" },
+  { name: "canned goods", share: 0.033, reorder: 0.457, status: "Known" },
+  { name: "deli", share: 0.032, reorder: 0.608, status: "Known" },
+  { name: "dry goods pasta", share: 0.027, reorder: 0.461, status: "Known" },
+  { name: "household", share: 0.023, reorder: 0.402, status: "Known" },
+  { name: "meat seafood", share: 0.022, reorder: 0.568, status: "Known" },
+  { name: "breakfast", share: 0.022, reorder: 0.561, status: "Known" },
+  { name: "personal care", share: 0.014, reorder: 0.321, status: "Known" },
+  { name: "babies", share: 0.013, reorder: 0.579, status: "Known" },
+  { name: "Unknown", share: 0.005, reorder: 0.410, status: "Unknown" }
+];
+
+const CART_POSITIONS = [
+  { pos: 1, reorder: 0.678 }, { pos: 2, reorder: 0.659 }, { pos: 3, reorder: 0.638 },
+  { pos: 4, reorder: 0.619 }, { pos: 5, reorder: 0.601 }, { pos: 6, reorder: 0.585 },
+  { pos: 7, reorder: 0.570 }, { pos: 8, reorder: 0.556 }, { pos: 9, reorder: 0.543 },
+  { pos: 10, reorder: 0.531 }, { pos: 11, reorder: 0.520 }, { pos: 12, reorder: 0.509 }
+];
+
+const REORDER_INTERVALS = [
+  { label: "01 - Same Day (0)", weight: 0.055, basket: 8.6, reorder: 0.520 },
+  { label: "02 - 1 to 7 Days", weight: 0.365, basket: 10.6, reorder: 0.675 },
+  { label: "03 - 8 to 14 Days", weight: 0.235, basket: 10.3, reorder: 0.605 },
+  { label: "04 - 15 to 21 Days", weight: 0.125, basket: 9.9, reorder: 0.540 },
+  { label: "05 - 22 to 30 Days", weight: 0.120, basket: 9.6, reorder: 0.485 },
+  { label: "06 - 30+ Days", weight: 0.100, basket: 9.2, reorder: 0.395 }
+];
+
+const TOP_REORDERED_PRODUCTS = [
+  { product: "Banana", dept: "produce", aisle: "fresh fruits", baseItems: 472565, reorder: 0.844, avgCart: 4.1, status: "Known" },
+  { product: "Bag of Organic Bananas", dept: "produce", aisle: "fresh fruits", baseItems: 379450, reorder: 0.832, avgCart: 4.3, status: "Known" },
+  { product: "Organic Strawberries", dept: "produce", aisle: "fresh fruits", baseItems: 264683, reorder: 0.777, avgCart: 5.5, status: "Known" },
+  { product: "Organic Baby Spinach", dept: "produce", aisle: "packaged vegetables fruits", baseItems: 241921, reorder: 0.769, avgCart: 5.7, status: "Known" },
+  { product: "Organic Hass Avocado", dept: "produce", aisle: "fresh fruits", baseItems: 213584, reorder: 0.761, avgCart: 5.3, status: "Known" },
+  { product: "Organic Whole Milk", dept: "dairy eggs", aisle: "milk", baseItems: 137905, reorder: 0.782, avgCart: 4.8, status: "Known" },
+  { product: "Organic Raspberries", dept: "produce", aisle: "fresh fruits", baseItems: 137057, reorder: 0.749, avgCart: 6.1, status: "Known" },
+  { product: "Organic Garlic", dept: "produce", aisle: "fresh vegetables", baseItems: 109778, reorder: 0.698, avgCart: 6.8, status: "Known" },
+  { product: "Sparkling Water Grapefruit", dept: "beverages", aisle: "water seltzer sparkling water", baseItems: 75711, reorder: 0.751, avgCart: 5.9, status: "Known" },
+  { product: "Organic Half & Half", dept: "dairy eggs", aisle: "cream", baseItems: 76360, reorder: 0.764, avgCart: 5.4, status: "Known" },
+  { product: "Unmapped Product #901", dept: "Unknown", aisle: "Unknown", baseItems: 162172, reorder: 0.410, avgCart: 7.4, status: "Unknown" }
+];
+
+const deptSelect = document.getElementById("deptFilter");
+DEPARTMENTS.forEach(d => {
+  const opt = document.createElement("option");
+  opt.value = d.name;
+  opt.textContent = d.name;
+  deptSelect.appendChild(opt);
+});
+
+let charts = {};
+
+function switchPage(pageId) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById(pageId).classList.add("active");
+  document.querySelectorAll(".nav-tab").forEach(b => {
+    b.classList.toggle("active", b.dataset.page === pageId);
+  });
+  Object.values(charts).forEach(ch => ch.resize());
+}
+
+function resetFilters() {
+  document.getElementById("dowFilter").value = "ALL";
+  document.getElementById("periodFilter").value = "ALL";
+  document.getElementById("deptFilter").value = "ALL";
+  document.getElementById("statusFilter").value = "ALL";
+  applyFilters();
+}
+
+function getPeriodName(hour) {
+  if (hour <= 5) return "Night";
+  if (hour <= 11) return "Morning";
+  if (hour <= 17) return "Afternoon";
+  return "Evening";
+}
+
+function fmtInt(n) { return Math.round(n).toLocaleString("en-US"); }
+function fmtPct(r) { return (r * 100).toFixed(1) + "%"; }
+
+function applyFilters() {
+  const dowVal = document.getElementById("dowFilter").value;
+  const periodVal = document.getElementById("periodFilter").value;
+  const deptVal = document.getElementById("deptFilter").value;
+  const statusVal = document.getElementById("statusFilter").value;
+
+  const activeDepts = DEPARTMENTS.filter(d => {
+    const matchDept = deptVal === "ALL" || d.name === deptVal;
+    const matchStatus = statusVal === "ALL" || d.status === statusVal;
+    return matchDept && matchStatus;
+  });
+
+  const deptShareSum = activeDepts.reduce((acc, d) => acc + d.share, 0);
+  const weightedDeptReorder = deptShareSum > 0
+    ? activeDepts.reduce((acc, d) => acc + d.share * d.reorder, 0) / deptShareSum
+    : 0.589;
+
+  const hourMask = HOUR_WEIGHTS.map((w, h) => (periodVal === "ALL" || getPeriodName(h) === periodVal) ? w : 0);
+  const hourShareSum = hourMask.reduce((a, b) => a + b, 0);
+
+  const dowMask = DOW_WEIGHTS.map((w, d) => (dowVal === "ALL" || String(d) === dowVal) ? w : 0);
+  const dowShareSum = dowMask.reduce((a, b) => a + b, 0);
+
+  const combinedTimeShare = hourShareSum * dowShareSum;
+  const orders = BASE_ORDERS * combinedTimeShare * (deptVal === "ALL" && statusVal === "ALL" ? 1 : Math.max(deptShareSum, 0.08));
+  const basketScale = periodVal === "Morning" ? 1.04 : periodVal === "Evening" ? 0.96 : 1.0;
+  const avgBasket = 10.09 * basketScale;
+  const totalItems = orders * avgBasket;
+
+  const periodReorderAdj = periodVal === "Morning" ? 0.018 : periodVal === "Night" ? -0.025 : 0;
+  const reorderRate = Math.min(0.95, Math.max(0.05, weightedDeptReorder + periodReorderAdj));
+  const reorderedItems = totalItems * reorderRate;
+
+  // Update KPIs Page 1
+  document.getElementById("p1_orders").textContent = fmtInt(orders);
+  document.getElementById("p1_items").textContent = fmtInt(totalItems);
+  document.getElementById("p1_basket").textContent = avgBasket.toFixed(2);
+  document.getElementById("p1_reorder").textContent = fmtPct(reorderRate);
+
+  // Update KPIs Page 2
+  document.getElementById("p2_reorder").textContent = fmtPct(reorderRate);
+  document.getElementById("p2_reordered_items").textContent = fmtInt(reorderedItems);
+  document.getElementById("p2_basket").textContent = avgBasket.toFixed(2);
+  document.getElementById("p2_cart_pos").textContent = (5.75 * basketScale).toFixed(2);
+
+  // Update KPIs Page 3
+  const unknownDept = DEPARTMENTS.find(d => d.name === "Unknown");
+  const unknownItems = statusVal === "Known" ? 0 : totalItems * (deptVal === "ALL" || deptVal === "Unknown" ? unknownDept.share / Math.max(deptShareSum, 0.005) : 0);
+  const unknownShare = totalItems > 0 ? unknownItems / totalItems : 0;
+  const distinctProds = Math.round(49688 * Math.max(deptShareSum, 0.02));
+
+  document.getElementById("p3_distinct_prods").textContent = fmtInt(distinctProds);
+  document.getElementById("p3_unknown_items").textContent = fmtInt(unknownItems);
+  document.getElementById("p3_unknown_share").textContent = fmtPct(unknownShare);
+  document.getElementById("p3_reorder").textContent = fmtPct(reorderRate);
+
+  // Badge summary
+  const parts = [];
+  if (dowVal !== "ALL") parts.push("Day: " + dowVal);
+  if (periodVal !== "ALL") parts.push(periodVal);
+  if (deptVal !== "ALL") parts.push(deptVal);
+  if (statusVal !== "ALL") parts.push(statusVal);
+  document.getElementById("filterSummary").textContent = parts.length
+    ? "Active Filters: " + parts.join(" • ")
+    : "All Data";
+
+  renderCharts(orders, totalItems, avgBasket, reorderRate, hourMask, dowMask, activeDepts, statusVal);
+  renderTables(totalItems, activeDepts, statusVal);
+}
+
+function upsertChart(key, canvasId, config) {
+  if (charts[key]) charts[key].destroy();
+  const ctx = document.getElementById(canvasId).getContext("2d");
+  charts[key] = new Chart(ctx, config);
+}
+
+function renderCharts(orders, totalItems, avgBasket, reorderRate, hourMask, dowMask, activeDepts, statusVal) {
+  const hNorm = hourMask.reduce((a, b) => a + b, 0) || 1;
+  const hourOrders = hourMask.map(w => orders * (w / hNorm));
+  const hourLabels = Array.from({ length: 24 }, (_, i) => String(i));
+
+  upsertChart("hour", "hourChart", {
+    type: "line",
+    data: {
+      labels: hourLabels,
+      datasets: [{
+        label: "Total Orders",
+        data: hourOrders,
+        borderColor: "#0f766e",
+        backgroundColor: "rgba(15, 118, 110, 0.14)",
+        fill: true,
+        tension: 0.35,
+        pointRadius: 2.5
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterLabel: () => [
+              "Avg Basket Size: " + avgBasket.toFixed(2),
+              "Reorder Rate %: " + fmtPct(reorderRate)
+            ]
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: "Hour of Day (0–23)" } },
+        y: { beginAtZero: true }
+      }
+    }
+  });
+
+  const dNorm = dowMask.reduce((a, b) => a + b, 0) || 1;
+  const dowOrders = dowMask.map(w => orders * (w / dNorm));
+  const dowLabels = ["0 (Sun)", "1 (Mon)", "2 (Tue)", "3 (Wed)", "4 (Thu)", "5 (Fri)", "6 (Sat)"];
+
+  upsertChart("dow", "dowChart", {
+    type: "bar",
+    data: {
+      labels: dowLabels,
+      datasets: [{
+        label: "Total Orders",
+        data: dowOrders,
+        backgroundColor: ["#0f766e", "#0d9488", "#64748b", "#64748b", "#64748b", "#64748b", "#94a3b8"],
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      onClick: (_, elements) => {
+        if (elements.length > 0) {
+          const idx = elements[0].index;
+          const sel = document.getElementById("dowFilter");
+          sel.value = sel.value === String(idx) ? "ALL" : String(idx);
+          applyFilters();
+        }
+      },
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  const top8Depts = [...activeDepts].sort((a, b) => b.share - a.share).slice(0, 8);
+  const deptSum = top8Depts.reduce((a, b) => a + b.share, 0) || 1;
+
+  upsertChart("p1Dept", "p1DeptChart", {
+    type: "bar",
+    data: {
+      labels: top8Depts.map(d => d.name),
+      datasets: [{
+        label: "Total Items Sold",
+        data: top8Depts.map(d => totalItems * (d.share / deptSum)),
+        backgroundColor: "#1d4ed8",
+        borderRadius: 6
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      onClick: (_, elements) => {
+        if (elements.length > 0) {
+          const deptName = top8Depts[elements[0].index].name;
+          const sel = document.getElementById("deptFilter");
+          sel.value = sel.value === deptName ? "ALL" : deptName;
+          applyFilters();
+        }
+      },
+      plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true } }
+    }
+  });
+
+  upsertChart("p2DeptCombo", "p2DeptComboChart", {
+    data: {
+      labels: top8Depts.map(d => d.name),
+      datasets: [
+        {
+          type: "bar",
+          label: "Total Items Sold",
+          data: top8Depts.map(d => totalItems * (d.share / deptSum)),
+          backgroundColor: "rgba(29, 78, 216, 0.75)",
+          yAxisID: "y",
+          borderRadius: 5
+        },
+        {
+          type: "line",
+          label: "Reorder Rate %",
+          data: top8Depts.map(d => +(d.reorder * 100).toFixed(1)),
+          borderColor: "#d97706",
+          backgroundColor: "#d97706",
+          yAxisID: "y1",
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, position: "left" },
+        y1: { beginAtZero: true, max: 100, position: "right", grid: { drawOnChartArea: false }, ticks: { callback: v => v + "%" } }
+      }
+    }
+  });
+
+  upsertChart("cartOrder", "cartOrderChart", {
+    type: "line",
+    data: {
+      labels: CART_POSITIONS.map(c => "#" + c.pos),
+      datasets: [{
+        label: "Reorder Rate %",
+        data: CART_POSITIONS.map(c => +(c.reorder * 100).toFixed(1)),
+        borderColor: "#0f766e",
+        backgroundColor: "rgba(15, 118, 110, 0.15)",
+        fill: true,
+        tension: 0.25
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: "Cart Position" } },
+        y: { min: 40, max: 75, ticks: { callback: v => v + "%" } }
+      }
+    }
+  });
+
+  upsertChart("interval", "intervalChart", {
+    data: {
+      labels: REORDER_INTERVALS.map(r => r.label),
+      datasets: [
+        {
+          type: "bar",
+          label: "Avg Basket Size",
+          data: REORDER_INTERVALS.map(r => r.basket),
+          backgroundColor: "rgba(15, 118, 110, 0.72)",
+          yAxisID: "y",
+          borderRadius: 5
+        },
+        {
+          type: "line",
+          label: "Reorder Rate %",
+          data: REORDER_INTERVALS.map(r => +(r.reorder * 100).toFixed(1)),
+          borderColor: "#dc2626",
+          backgroundColor: "#dc2626",
+          yAxisID: "y1",
+          tension: 0.25
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, position: "left" },
+        y1: { beginAtZero: true, max: 100, position: "right", grid: { drawOnChartArea: false }, ticks: { callback: v => v + "%" } }
+      }
+    }
+  });
+
+  const knownItems = statusVal === "Unknown" ? 0 : totalItems * (1 - (statusVal === "Known" ? 0 : 0.005));
+  const unknownItems = statusVal === "Known" ? 0 : totalItems * 0.005;
+
+  upsertChart("knownVsUnknown", "knownVsUnknownChart", {
+    type: "bar",
+    data: {
+      labels: ["Known Products", "Unknown Products"],
+      datasets: [{
+        label: "Total Items Sold",
+        data: [knownItems, unknownItems],
+        backgroundColor: ["#0f766e", "#dc2626"],
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+}
+
+function renderTables(totalItems, activeDepts, statusVal) {
+  const tbodyReordered = document.getElementById("topReorderedBody");
+  const filteredProds = TOP_REORDERED_PRODUCTS.filter(p => {
+    const deptNames = new Set(activeDepts.map(d => d.name));
+    const matchesDept = deptNames.has(p.dept);
+    const matchesStatus = statusVal === "ALL" || p.status === statusVal;
+    const minOrdersOk = p.baseItems >= 1000;
+    return matchesDept && matchesStatus && minOrdersOk;
+  }).sort((a, b) => b.reorder - a.reorder);
+
+  tbodyReordered.innerHTML = filteredProds.map(p => `
+    <tr>
+      <td>${p.product}</td>
+      <td>${p.dept}</td>
+      <td>${fmtInt(p.baseItems)}</td>
+      <td><strong>${fmtPct(p.reorder)}</strong></td>
+    </tr>
+  `).join("") || `<tr><td colspan="4">No matching products found</td></tr>`;
+
+  const tbodyHier = document.getElementById("hierarchyBody");
+  const hierRows = TOP_REORDERED_PRODUCTS.filter(p => {
+    const deptNames = new Set(activeDepts.map(d => d.name));
+    return deptNames.has(p.dept) && (statusVal === "ALL" || p.status === statusVal);
+  });
+
+  tbodyHier.innerHTML = hierRows.map(r => `
+    <tr>
+      <td>${r.dept} &rarr; ${r.aisle} &rarr; <strong>${r.product}</strong></td>
+      <td><span class="pill ${r.status === "Unknown" ? "pill-unknown" : "pill-known"}">${r.status}</span></td>
+      <td>${fmtInt(r.baseItems)}</td>
+      <td>${fmtPct(r.reorder)}</td>
+      <td>${r.avgCart.toFixed(1)}</td>
+    </tr>
+  `).join("") || `<tr><td colspan="5">No matching rows found</td></tr>`;
+}
+
+applyFilters();
+</script>
+</body>
+</html>
